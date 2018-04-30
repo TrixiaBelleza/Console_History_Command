@@ -28,31 +28,113 @@
 #include "console.h"
 // #include <string.h>
 // #include <stdlib.h>
-typedef struct histtag{
-   char input[500];
-   int offset;
-   struct histtag *next;
-}HIST_NODE;
 int count=0;
 int offset_count=0;
+
 HIST_NODE *createNewElement(char *inputCommand) {
    HIST_NODE *newNode;
    newNode = (HIST_NODE*)malloc(sizeof(HIST_NODE));
+   newNode->prev = NULL;
    strcpy(newNode->input, inputCommand);
    newNode->offset=offset_count;
    newNode->next = NULL;
    offset_count++;
+
    return newNode;
 }
 
-void insertAtHead(HIST_NODE **head, HIST_NODE *node) {
-   if(*head != NULL) {
-      node->next = *head;
+void insertAtHead(HIST_NODE **head, HIST_NODE **tail, HIST_NODE *newNode) {
+   if((*head)->next==NULL) {
+      (*head)->next=newNode;
+      newNode->prev=*head;
+      newNode->next=*tail;
+      (*tail)->prev=newNode;
+      return; //acts like a break;
    }
-   *head = node;
+   else{
+      HIST_NODE *after=(*head)->next;
+      HIST_NODE *before=after->prev;
+
+      newNode->next=after;
+      newNode->prev=before;
+      after->prev=newNode;
+      before->next=newNode;
+      return; //acts like a break
+   }
 }
 
-HIST_NODE *head=NULL; //global variable hist_node's head
+void print_history(HIST_NODE **head) {
+   if(*head!=NULL) {
+      HIST_NODE *temp=(*head)->next;
+      while(temp->next!=NULL){
+         printf("%i\t", temp->offset);
+         printf("%s\n", temp->input);
+         temp=temp->next;
+      }
+   }
+  
+}
+
+HIST_NODE* searchNode(HIST_NODE *head, int lookfor_offset){
+   HIST_NODE *ptr=head->next;
+  
+   while(ptr->next!=NULL){
+      if(lookfor_offset == ptr->offset){
+         return ptr;
+      }
+      ptr=ptr->next;
+   }
+   printf("No match found.\n");
+   return ptr=NULL;
+}
+
+void delete(HIST_NODE **head, HIST_NODE **tail, int delete_offset) {
+   HIST_NODE *toDelete=searchNode(*head, delete_offset);
+   HIST_NODE *ptr=*head;
+   if (toDelete!=NULL){
+      //update offset counts
+      while(ptr->next!=toDelete){
+         ptr->next->offset = (ptr->next->offset) - 1;
+         ptr=ptr->next;
+      }
+      offset_count--;
+     
+      if((*head)->next->next == tail) {  //if one element lang
+         toDelete->prev->next=NULL;
+         toDelete->next->prev=NULL;
+         free(toDelete);
+
+         printf("Successfully deleted history offset: %i\n", delete_offset);
+         return;
+      }
+      else{
+         toDelete->prev->next = toDelete->next;
+         toDelete->next->prev = toDelete->prev;
+         free(toDelete);
+
+         printf("Successfully deleted history offset: %i\n", delete_offset);
+         return;
+      }
+   }
+}
+
+void deleteAll(HIST_NODE **head, HIST_NODE **tail) {
+   HIST_NODE *ptr = (*head)->next;
+   while(ptr->next!=NULL) {
+      delete(head,tail,ptr->offset);
+      ptr=ptr->next;
+   }
+}
+
+void destroyList(HIST_NODE **head, HIST_NODE **tail) {
+   while((*head)->next != NULL) {
+      *head = (*head)->next;
+      free((*head)->prev);
+      (*head)->prev = NULL;
+   }
+   free(*tail);
+}
+
 /*A console mode get string function terminates
 upon receving \r */
 void getstring(char *buf, DEX32_DDL_INFO *dev){
@@ -326,7 +408,6 @@ int console_showfile(char *s, int wait){
    return 1;
 };
 
-
 //creates a virtual console for a process
 DWORD alloc_console(){
    dex32_commit(0xB8000, 1, current_process->pagedirloc, PG_WR);
@@ -335,7 +416,6 @@ DWORD alloc_console(){
 void console(){
    console_main();
 };
-
 
 void prompt_parser(const char *promptstr, char *prompt){
    int i, i2 = 0, i3 = 0;
@@ -495,123 +575,12 @@ void console_ls(int style, int sortmethod){
    free(buffer);
     
 };
-
-void print_history() {
-
-   HIST_NODE *temp=head;
-   while(temp!=NULL){
-      printf("%i\t", temp->offset);
-      printf("%s\n", temp->input);
-      temp=temp->next;
-   }
-}
-
-void deleteAtHead(){ 
-   HIST_NODE *toDelete=(head);
-   if(head!=NULL){ //if may laman
-      (head)=toDelete->next;
-      toDelete->next=NULL;
-      free(toDelete); 
-   }
-}
-
-void deleteAtMiddle(HIST_NODE *NODEOfInterest){
-  
-   int numOfElements=elementsCounter(head);
-   if (numOfElements>=2){
-      HIST_NODE *stalker=head;
-      HIST_NODE *toDelete=stalker->next;
-      
-      while(toDelete!=NODEOfInterest){
-         toDelete=toDelete->next;
-         stalker=stalker->next;
-      }
-      stalker->next=toDelete->next;
-      toDelete->next=NULL;
-      free(toDelete);
-   }
-   else{
-      printf("Invalid Operation.\n");
-   }
-}
-
-int elementsCounter(){
-   HIST_NODE *temp=head;
-   int counter=0;
-   while(temp->next!=NULL){
-      counter+=1;
-      temp=temp->next;
-   }
-   return counter;
-}
-
-void deleteAtTail(){
-   HIST_NODE *stalker=head;
-   HIST_NODE *toDelete=stalker->next;
-   int numOfElements=elementsCounter(head);
-   if (numOfElements==1){
-      deleteAtHead();
-   }
-   else if(numOfElements>=2){
-      while(toDelete->next=NULL){
-         toDelete=toDelete->next;
-         stalker=stalker->next;
-         free(toDelete);
-         stalker->next=NULL;
-      }
-   }
-   else if(numOfElements==0){
-      printf("Invalid operation\n");
-   }
-}
-
-HIST_NODE* searchNode(int lookfor_offset){
-   HIST_NODE *ptr=head;
-  
-   while(ptr!=NULL){
-      if(lookfor_offset == ptr->offset){
-         return ptr;
-      }
-      ptr=ptr->next;
-   }
-   printf("No match found.\n");
-   return ptr=NULL;
-}
-
-void delete(int delete_offset){
-   HIST_NODE *toDelete=searchNode(delete_offset);
-   HIST_NODE *ptr=head;
-   if (toDelete!=NULL){
-       //update offset counts
-      while(ptr!=toDelete){
-         ptr->offset = (ptr->offset) - 1;
-         ptr=ptr->next;
-      }
-      offset_count--;
-      if(toDelete==head){
-         deleteAtHead();
-      }
-      else if(toDelete->next==NULL){
-         deleteAtTail();
-      }
-      else{
-         deleteAtMiddle(toDelete);
-      }
-      printf("Successfully deleted history offset: %i\n", delete_offset);
-   }
-}
-
-void destroyList(){
-   while(head!=NULL){
-      deleteAtHead(head);
-   }
-}
 /* ==================================================================
    console_execute(const char *str):
    * This command is used to execute a console string.
 
 */
-int console_execute(const char *str){
+int console_execute(const char *str, HIST_NODE **head, HIST_NODE **tail){
    count++;
    char temp[512];
    char *u;
@@ -621,7 +590,7 @@ int console_execute(const char *str){
    //make a copy so that strtok wouldn't ruin str
    strcpy(temp,str);
 
-   if(count > 19) insertAtHead(&head, createNewElement(temp)); 
+   if(count > 19) insertAtHead(head, tail, createNewElement(temp)); 
    u=strtok(temp," ");
    
    if (u == 0) 
@@ -633,7 +602,7 @@ int console_execute(const char *str){
    if (u[command_length - 1] == ':'){
       char temp[512];
       sprintf(temp,"cd %s",u);            
-      console_execute(temp); 
+      console_execute(temp, head, tail); 
    }else 
    if (strcmp(u,"fgman") == 0){  //--  Foreground manager
       fg_set_state(1);
@@ -649,11 +618,6 @@ int console_execute(const char *str){
          last_mouse_y=mouse_y; 
       }
    }else 
-   if (strcmp(u, "hello") == 0) {
-      u=strtok(0, "");
-      printf("you typed hello\n");
-
-   }else
    if (strcmp(u,"shutdown") == 0){  //-- Shuts down the system.
       sendmessage(0,MES_SHUTDOWN,0);
    }else
@@ -721,17 +685,17 @@ int console_execute(const char *str){
          do {
             strcpy(v,u);
             if (strcmp(v,"-c") == 0) {    //delete all
-               destroyList();
+               deleteAll(head, tail);
                printf("Successfully deleted history.\n");
                offset_count = 0; //reset to 0
             }
             if (strcmp(v, "-d") == 0) {   //delete specific offset
                toDel=atoi(u2);
-               delete(toDel);
+               delete(head, tail, toDel);
             }
             u=strtok(0," ");
          } while (u!=0);
-      }else  print_history();
+      }else  print_history(head);
    }else
    if (strcmp(u,"rempcut") == 0){   //-- Removes a path alias. Args: <alias:>
       char *u2;
@@ -796,7 +760,7 @@ int console_execute(const char *str){
       clrscr();
    }else
    if (strcmp(u,"help") == 0){         //-- Displays this help screen.
-      console_execute("type /icsos/icsos.hlp");
+      console_execute("type /icsos/icsos.hlp", head, tail);
    }else
    if (strcmp(u,"umount") == 0){       //-- Unmounts a mounted device. Args: <mount point>
       char *u =strtok(0," ");
@@ -1015,6 +979,12 @@ int console_new(){
 };
 
 void console_main(){
+
+   //global variable hist_node's head & tail
+   HIST_NODE *head=(HIST_NODE*)malloc(sizeof(HIST_NODE)); 
+   HIST_NODE *tail=(HIST_NODE*)malloc(sizeof(HIST_NODE)); 
+   head->next = head->prev = tail->next = tail->prev = NULL; //dummy nodes!!! =)
+
    DEX32_DDL_INFO *myddl=0;
    fg_processinfo *myfg;
    char s[256]="";
@@ -1047,7 +1017,7 @@ void console_main(){
       textcolor(LIGHTBLUE);
       printf("%s",console_prompt);  
       textcolor(WHITE);
-
+      
 
       if (strcmp(s,"@@")!=0 && strcmp(s,"!!")!=0)
          strcpy(last,s);
@@ -1062,8 +1032,8 @@ void console_main(){
          sendtokeyb("\r",&_q);
       }
       else   
-         console_execute(s);
+         console_execute(s, &head, &tail);
    } while (1);
-   destroyList();
+   destroyList(head, tail);
 };
 
