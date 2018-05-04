@@ -45,6 +45,7 @@ HIST_NODE *createNewElement(char *inputCommand) {
 
 void insertAtHead(HIST_NODE **head, HIST_NODE **tail, HIST_NODE *newNode) {
    if((*head)->next==NULL) {
+      // printf("entered insertAtHead\n");
       (*head)->next=newNode;
       newNode->prev=*head;
       newNode->next=*tail;
@@ -63,6 +64,20 @@ void insertAtHead(HIST_NODE **head, HIST_NODE **tail, HIST_NODE *newNode) {
    }
 }
 
+void insertAtTail(HIST_NODE **head, HIST_NODE **tail, HIST_NODE *newNode) {
+   HIST_NODE *after = (*head)->next;
+   HIST_NODE *before = after->prev;
+
+   while(after != NULL) {
+      if(after->next==NULL) {
+         newNode->next = after;
+         newNode->prev = before;
+         before->next = newNode;
+         after->prev = newNode;
+         return; //acts like a break
+      }
+   }
+}
 void print_history(HIST_NODE **head) {
    if(*head!=NULL) {
       HIST_NODE *temp=(*head)->next;
@@ -104,7 +119,6 @@ void delete(HIST_NODE **head, HIST_NODE **tail, int delete_offset) {
          toDelete->next->prev=NULL;
          free(toDelete);
 
-         printf("Successfully deleted history offset: %i\n", delete_offset);
          return;
       }
       else{
@@ -112,7 +126,6 @@ void delete(HIST_NODE **head, HIST_NODE **tail, int delete_offset) {
          toDelete->next->prev = toDelete->prev;
          free(toDelete);
 
-         printf("Successfully deleted history offset: %i\n", delete_offset);
          return;
       }
    }
@@ -575,6 +588,19 @@ void console_ls(int style, int sortmethod){
    free(buffer);
     
 };
+
+void console_history(HIST_NODE **head, HIST_NODE **tail, int clear, int delSpecific, int toDel) {
+   if(clear==1) {
+      deleteAll(head, tail);
+      printf("Successfully deleted history.\n");
+      offset_count = 0; //reset to 0
+   }
+   if(delSpecific==1) {
+      delete(head, tail, toDel);
+      printf("Successfully deleted history offset: %i\n", toDel);
+
+   }
+}
 /* ==================================================================
    console_execute(const char *str):
    * This command is used to execute a console string.
@@ -586,7 +612,7 @@ int console_execute(const char *str, HIST_NODE **head, HIST_NODE **tail){
    char *u;
    int command_length = 0;
    signed char mouse_x, mouse_y, last_mouse_x=0, last_mouse_y=0;
-  
+   // FILE *fp;
    //make a copy so that strtok wouldn't ruin str
    strcpy(temp,str);
 
@@ -676,8 +702,12 @@ int console_execute(const char *str, HIST_NODE **head, HIST_NODE **tail){
    }else
    if(strcmp(u,"history") == 0) {
       char v[20];
-      int toDel;
+      char command_from_file[250];
+      int toDel=-1;
+      int clear=0;
+      int delSpecific=0;
       char *u2, *u3;
+      file_PCB *f;
       u=strtok(0," ");
       u2=strtok(0, " ");
       u3=strtok(0, " ");
@@ -685,14 +715,55 @@ int console_execute(const char *str, HIST_NODE **head, HIST_NODE **tail){
          do {
             strcpy(v,u);
             if (strcmp(v,"-c") == 0) {    //delete all
-               deleteAll(head, tail);
-               printf("Successfully deleted history.\n");
-               offset_count = 0; //reset to 0
+               clear=1;
             }
             if (strcmp(v, "-d") == 0) {   //delete specific offset
                toDel=atoi(u2);
-               delete(head, tail, toDel);
+               delSpecific=1;
+            }  
+            if(strcmp(v, "-n") == 0) {
+               //just print current session's history
+            
             }
+            if(strcmp(v, "-r") == 0) {
+               //Read the history file then append the contents to current session's history list
+               // vfs_stat filestat;
+               int size;
+               int counter=0;
+               int command_from_file_size;
+               char *token;
+               f=openfilex("history.txt",FILE_READ);
+               if(f!=0) {
+                  printf("hi\n");
+                  // vfs_stat fileinfo;
+                  // fstat(f, &fileinfo);
+                  // size = fileinfo.st_size;
+                  fread(command_from_file, 250, 1, f);
+                  command_from_file[strlen(command_from_file)-2] = '\0';
+                  printf("read: %s\n", command_from_file);
+                  printf("size: %i\n", strlen(command_from_file));
+                  command_from_file_size = strlen(command_from_file);
+                  strtok(command_from_file, "\n");
+                  counter = strlen(command_from_file)+1;
+                  insertAtHead(head, tail, createNewElement(command_from_file));
+                  
+                  while(counter < command_from_file_size) {
+
+                     token = strtok(NULL, "\n");
+                     printf("%s\n", token);
+                     insertAtHead(head, tail, createNewElement(token));
+                     // insertAtTail(head, tail, createNewElement(command_from_file));
+                     counter += strlen(token);
+                  }
+
+               }
+               fclose(f);
+               print_history(head);
+             
+            }
+
+            console_history(head, tail, clear, delSpecific, toDel);
+
             u=strtok(0," ");
          } while (u!=0);
       }else  print_history(head);
@@ -984,7 +1055,8 @@ void console_main(){
    HIST_NODE *head=(HIST_NODE*)malloc(sizeof(HIST_NODE)); 
    HIST_NODE *tail=(HIST_NODE*)malloc(sizeof(HIST_NODE)); 
    head->next = head->prev = tail->next = tail->prev = NULL; //dummy nodes!!! =)
-
+   //file_history_head
+   //file_history_tail
    DEX32_DDL_INFO *myddl=0;
    fg_processinfo *myfg;
    char s[256]="";
@@ -1017,7 +1089,7 @@ void console_main(){
       textcolor(LIGHTBLUE);
       printf("%s",console_prompt);  
       textcolor(WHITE);
-      
+
 
       if (strcmp(s,"@@")!=0 && strcmp(s,"!!")!=0)
          strcpy(last,s);
