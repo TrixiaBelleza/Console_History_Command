@@ -26,6 +26,7 @@
 */
 
 #include "console.h"
+
 // #include <string.h>
 // #include <stdlib.h>
 int count=0;
@@ -589,7 +590,7 @@ void console_ls(int style, int sortmethod){
     
 };
 
-void console_history(HIST_NODE **head, HIST_NODE **tail, int clear, int delSpecific, int toDel) {
+void console_history(HIST_NODE **head, HIST_NODE **tail, int clear, int delSpecific, int toDel, int optionR) {
    if(clear==1) {
       deleteAll(head, tail);
       printf("Successfully deleted history.\n");
@@ -599,6 +600,24 @@ void console_history(HIST_NODE **head, HIST_NODE **tail, int clear, int delSpeci
       delete(head, tail, toDel);
       printf("Successfully deleted history offset: %i\n", toDel);
 
+   }
+   if(optionR==1) {
+      file_PCB *file;
+      file = openfilex("/icsos/history.txt", FILE_READ);
+
+      if(file != 0) {
+         do {
+            char linebuffer[512], temp[512], *str;
+
+            //obtain a line from the file
+            fgets(linebuffer, 512, file);
+
+            str = strtok(linebuffer, "\n");
+            strcpy(temp,str);
+            insertAtHead(head, tail, createNewElement(temp));
+         } while(!feof(file));
+      }
+      fclose(file);
    }
 }
 /* ==================================================================
@@ -702,11 +721,14 @@ int console_execute(const char *str, HIST_NODE **head, HIST_NODE **tail){
    }else
    if(strcmp(u,"history") == 0) {
       char v[20];
-      char command_from_file[250];
+      char *command_from_file;
       int toDel=-1;
       int clear=0;
       int delSpecific=0;
+      int optionR=0;
       char *u2, *u3;
+      int offset_min = 0;
+      int offset_max = 0;
       file_PCB *f;
       u=strtok(0," ");
       u2=strtok(0, " ");
@@ -721,48 +743,12 @@ int console_execute(const char *str, HIST_NODE **head, HIST_NODE **tail){
                toDel=atoi(u2);
                delSpecific=1;
             }  
-            if(strcmp(v, "-n") == 0) {
-               //just print current session's history
-            
-            }
             if(strcmp(v, "-r") == 0) {
                //Read the history file then append the contents to current session's history list
-               // vfs_stat filestat;
-               int size;
-               int counter=0;
-               int command_from_file_size;
-               char *token;
-               f=openfilex("history.txt",FILE_READ);
-               if(f!=0) {
-                  printf("hi\n");
-                  // vfs_stat fileinfo;
-                  // fstat(f, &fileinfo);
-                  // size = fileinfo.st_size;
-                  fread(command_from_file, 250, 1, f);
-                  command_from_file[strlen(command_from_file)-2] = '\0';
-                  printf("read: %s\n", command_from_file);
-                  printf("size: %i\n", strlen(command_from_file));
-                  command_from_file_size = strlen(command_from_file);
-                  strtok(command_from_file, "\n");
-                  counter = strlen(command_from_file)+1;
-                  insertAtHead(head, tail, createNewElement(command_from_file));
-                  
-                  while(counter < command_from_file_size) {
-
-                     token = strtok(NULL, "\n");
-                     printf("%s\n", token);
-                     insertAtHead(head, tail, createNewElement(token));
-                     // insertAtTail(head, tail, createNewElement(command_from_file));
-                     counter += strlen(token);
-                  }
-
-               }
-               fclose(f);
-               print_history(head);
-             
+               optionR = 1;
             }
 
-            console_history(head, tail, clear, delSpecific, toDel);
+            console_history(head, tail, clear, delSpecific, toDel, optionR);
 
             u=strtok(0," ");
          } while (u!=0);
