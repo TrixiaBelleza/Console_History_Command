@@ -25,8 +25,9 @@
 */
 #include "console.h"
 #define SCRIPT_MAXINSTANCE 20
-HIST_NODE *head=NULL;
-HIST_NODE *tail=NULL;
+hist_node *head=NULL;
+hist_node *tail=NULL;
+
 //removes '\n', '\r' and other characters which could mess
 //with the interpreter and replaces them with a space
 void script_cleanline(char *s){

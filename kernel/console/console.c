@@ -31,10 +31,15 @@
 // #include <stdlib.h>
 int count=0;
 int offset_count=0;
+int offset_min = 0;
+int offset_max = 0;
+int optionRcount=0;       //made it global so machechange siya everytime naeexecute yung console_execute
+hist_node *head;
+hist_node *tail;
 
-HIST_NODE *createNewElement(char *inputCommand) {
-   HIST_NODE *newNode;
-   newNode = (HIST_NODE*)malloc(sizeof(HIST_NODE));
+hist_node *createNewElement(char *inputCommand) {
+   hist_node *newNode;
+   newNode = (hist_node*)malloc(sizeof(hist_node));
    newNode->prev = NULL;
    strcpy(newNode->input, inputCommand);
    newNode->offset=offset_count;
@@ -44,7 +49,7 @@ HIST_NODE *createNewElement(char *inputCommand) {
    return newNode;
 }
 
-void insertAtHead(HIST_NODE **head, HIST_NODE **tail, HIST_NODE *newNode) {
+void insertAtHead(hist_node **head, hist_node **tail, hist_node *newNode) {
    if((*head)->next==NULL) {
       // printf("entered insertAtHead\n");
       (*head)->next=newNode;
@@ -54,8 +59,8 @@ void insertAtHead(HIST_NODE **head, HIST_NODE **tail, HIST_NODE *newNode) {
       return; //acts like a break;
    }
    else{
-      HIST_NODE *after=(*head)->next;
-      HIST_NODE *before=after->prev;
+      hist_node *after=(*head)->next;
+      hist_node *before=after->prev;
 
       newNode->next=after;
       newNode->prev=before;
@@ -65,9 +70,9 @@ void insertAtHead(HIST_NODE **head, HIST_NODE **tail, HIST_NODE *newNode) {
    }
 }
 
-void insertAtTail(HIST_NODE **head, HIST_NODE **tail, HIST_NODE *newNode) {
-   HIST_NODE *after = (*head)->next;
-   HIST_NODE *before = after->prev;
+void insertAtTail(hist_node **head, hist_node **tail, hist_node *newNode) {
+   hist_node *after = (*head)->next;
+   hist_node *before = after->prev;
 
    while(after != NULL) {
       if(after->next==NULL) {
@@ -79,9 +84,9 @@ void insertAtTail(HIST_NODE **head, HIST_NODE **tail, HIST_NODE *newNode) {
       }
    }
 }
-void print_history(HIST_NODE **head) {
+void print_history(hist_node **head) {
    if(*head!=NULL) {
-      HIST_NODE *temp=(*head)->next;
+      hist_node *temp=(*head)->next;
       while(temp->next!=NULL){
          printf("%i\t", temp->offset);
          printf("%s\n", temp->input);
@@ -91,8 +96,8 @@ void print_history(HIST_NODE **head) {
   
 }
 
-HIST_NODE* searchNode(HIST_NODE *head, int lookfor_offset){
-   HIST_NODE *ptr=head->next;
+hist_node* searchNode(hist_node *head, int lookfor_offset){
+   hist_node *ptr=head->next;
   
    while(ptr->next!=NULL){
       if(lookfor_offset == ptr->offset){
@@ -104,9 +109,9 @@ HIST_NODE* searchNode(HIST_NODE *head, int lookfor_offset){
    return ptr=NULL;
 }
 
-void delete(HIST_NODE **head, HIST_NODE **tail, int delete_offset) {
-   HIST_NODE *toDelete=searchNode(*head, delete_offset);
-   HIST_NODE *ptr=*head;
+void delete(hist_node **head, hist_node **tail, int delete_offset) {
+   hist_node *toDelete=searchNode(*head, delete_offset);
+   hist_node *ptr=*head;
    if (toDelete!=NULL){
       //update offset counts
       while(ptr->next!=toDelete){
@@ -132,15 +137,15 @@ void delete(HIST_NODE **head, HIST_NODE **tail, int delete_offset) {
    }
 }
 
-void deleteAll(HIST_NODE **head, HIST_NODE **tail) {
-   HIST_NODE *ptr = (*head)->next;
+void deleteAll(hist_node **head, hist_node **tail) {
+   hist_node *ptr = (*head)->next;
    while(ptr->next!=NULL) {
       delete(head,tail,ptr->offset);
       ptr=ptr->next;
    }
 }
 
-void destroyList(HIST_NODE **head, HIST_NODE **tail) {
+void destroyList(hist_node **head, hist_node **tail) {
    while((*head)->next != NULL) {
       *head = (*head)->next;
       free((*head)->prev);
@@ -149,11 +154,39 @@ void destroyList(HIST_NODE **head, HIST_NODE **tail) {
    free(*tail);
 }
 
+char * historyUp(hist_node **ptr){
+   if((*ptr)->next != NULL){
+      if((*ptr) != tail){
+         (*ptr) = (*ptr)->next;
+         return (*ptr)->input;
+      }
+   }
+   return NULL;
+}
+
+char * historyDown(hist_node **ptr){
+   if((*ptr)->prev != NULL){
+
+      if((*ptr) != head){
+         (*ptr) = (*ptr)->prev;
+         return (*ptr)->input;
+      }
+   }
+   return NULL;
+}
+
 /*A console mode get string function terminates
 upon receving \r */
+
 void getstring(char *buf, DEX32_DDL_INFO *dev){
    unsigned int i=0;
    char c;
+   int j;
+
+   hist_node *ptr = head;
+   int end=0;
+   int start=0;
+
 
    do{
       c=getch();
@@ -173,6 +206,48 @@ void getstring(char *buf, DEX32_DDL_INFO *dev){
             Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),' ',Dex32GetAttb(dev));
          };
       }else{
+         if(c == -105) {
+            while(i>0){
+               i--;
+               Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),' ',Dex32GetAttb(dev));
+               Dex32SetX(dev,Dex32GetX(dev)-1);
+            }
+            strcpy(buf, historyUp(&ptr));
+            if(start == 1) start=0;
+            if(ptr == tail){
+               end = 1;
+           
+            }
+            if(end != 1){
+               for(int j=0; j<strlen(buf); j++){
+                  i++;
+                  Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),buf[j],Dex32GetAttb(dev));
+                  Dex32SetX(dev,Dex32GetX(dev)+1);
+               }
+              
+            }
+         }else
+         if(c == -104) {
+            while(i>0){
+               i--;
+               Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),' ',Dex32GetAttb(dev));
+               Dex32SetX(dev,Dex32GetX(dev)-1);
+            }
+            strcpy(buf, historyDown(&ptr));
+            if(end == 1) end=0;
+            if(ptr == head){
+               start = 1;
+              
+            }
+            if(start != 1){
+               for(int j=0; j<strlen(buf); j++){
+                  i++;
+                  Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),buf[j],Dex32GetAttb(dev));
+                  Dex32SetX(dev,Dex32GetX(dev)+1);
+               }
+            }
+            
+         }else
          if (i<256){  //maximum command line is only 255 characters
             Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),buf[i]=c,Dex32GetAttb(dev));
             i++;
@@ -192,6 +267,51 @@ void getstring(char *buf, DEX32_DDL_INFO *dev){
    Dex32NextLn(dev);
    buf[i]=0;
 };
+
+
+// /*A console mode get string function terminates
+// upon receving \r */
+// void getstring(char *buf, DEX32_DDL_INFO *dev){
+//    unsigned int i=0;
+//    char c;
+
+//    do{
+//       c=getch();
+//       if (c=='\r' || c=='\n' || c==0xa) 
+//          break;
+
+//       if (c=='\b' || (unsigned char)c == 145){
+//          if(i>0){
+//             i--;
+//             if (Dex32GetX(dev)==0){
+//                Dex32SetX(dev,79);
+//                if (Dex32GetY(dev)>0) 
+//                   Dex32SetY(dev,Dex32GetY(dev)-1);
+//             }else{
+//                Dex32SetX(dev,Dex32GetX(dev)-1);
+//             }     
+//             Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),' ',Dex32GetAttb(dev));
+//          };
+//       }else{
+//          if (i<256){  //maximum command line is only 255 characters
+//             Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),buf[i]=c,Dex32GetAttb(dev));
+//             i++;
+//             Dex32SetX(dev,Dex32GetX(dev)+1);     
+//             if (Dex32GetX(dev)>79){
+//                Dex32SetX(dev,0);
+//                Dex32NextLn(dev);
+//             };
+//          };
+//       };
+
+//       Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),' ',Dex32GetAttb(dev));
+//       update_cursor(Dex32GetY(dev),Dex32GetX(dev));
+//    }while (c!='\r');
+    
+//    Dex32SetX(dev,0);
+//    Dex32NextLn(dev);
+//    buf[i]=0;
+// };
 
 /*Show information about memory usage. This function is also useful
   for detecting memory leaks*/
@@ -590,11 +710,13 @@ void console_ls(int style, int sortmethod){
     
 };
 
-void console_history(HIST_NODE **head, HIST_NODE **tail, int clear, int delSpecific, int toDel, int optionR) {
+void console_history(hist_node **head, hist_node **tail, int clear, int delSpecific, int toDel, int optionR, int optionN) {
+ 
    if(clear==1) {
       deleteAll(head, tail);
       printf("Successfully deleted history.\n");
       offset_count = 0; //reset to 0
+      optionRcount = 0; //reset to 0
    }
    if(delSpecific==1) {
       delete(head, tail, toDel);
@@ -604,7 +726,8 @@ void console_history(HIST_NODE **head, HIST_NODE **tail, int clear, int delSpeci
    if(optionR==1) {
       file_PCB *file;
       file = openfilex("/icsos/history.txt", FILE_READ);
-
+      offset_min = offset_count;
+      offset_max = offset_count;
       if(file != 0) {
          do {
             char linebuffer[512], temp[512], *str;
@@ -615,9 +738,21 @@ void console_history(HIST_NODE **head, HIST_NODE **tail, int clear, int delSpeci
             str = strtok(linebuffer, "\n");
             strcpy(temp,str);
             insertAtHead(head, tail, createNewElement(temp));
+            offset_max++;
          } while(!feof(file));
+         printf("Successfully read history file!\n");
       }
       fclose(file);
+      optionRcount=1;
+   }
+   if(optionN == 1) {
+      int count = offset_min;
+      int toDel = offset_min;
+      for(count = offset_min; count < offset_max; count++) {
+         delete(head, tail, toDel);
+      }
+      printf("Operation has been successfully executed!");
+      optionRcount=0; //reset to 0
    }
 }
 /* ==================================================================
@@ -625,13 +760,13 @@ void console_history(HIST_NODE **head, HIST_NODE **tail, int clear, int delSpeci
    * This command is used to execute a console string.
 
 */
-int console_execute(const char *str, HIST_NODE **head, HIST_NODE **tail){
+int console_execute(const char *str, hist_node **head, hist_node **tail){
    count++;
    char temp[512];
    char *u;
    int command_length = 0;
    signed char mouse_x, mouse_y, last_mouse_x=0, last_mouse_y=0;
-   // FILE *fp;
+
    //make a copy so that strtok wouldn't ruin str
    strcpy(temp,str);
 
@@ -720,19 +855,20 @@ int console_execute(const char *str, HIST_NODE **head, HIST_NODE **tail){
       }
    }else
    if(strcmp(u,"history") == 0) {
+     
       char v[20];
       char *command_from_file;
       int toDel=-1;
       int clear=0;
       int delSpecific=0;
-      int optionR=0;
-      char *u2, *u3;
-      int offset_min = 0;
-      int offset_max = 0;
+      int optionR = 0;
+      int optionN=0;
+      char *u2;
       file_PCB *f;
+      
       u=strtok(0," ");
       u2=strtok(0, " ");
-      u3=strtok(0, " ");
+   
       if (u != 0){
          do {
             strcpy(v,u);
@@ -743,12 +879,21 @@ int console_execute(const char *str, HIST_NODE **head, HIST_NODE **tail){
                toDel=atoi(u2);
                delSpecific=1;
             }  
-            if(strcmp(v, "-r") == 0) {
+            if(strcmp(v, "-r") == 0) {  
                //Read the history file then append the contents to current session's history list
-               optionR = 1;
+               if(optionRcount == 0) {  //this optionRcount controls the number of times the user has entered the option "-r". Dapat kasi pag naread na, bawal na magread ulit. Unless nagdelete ng hist.
+                  optionR = 1;
+               }
+               else {
+                  optionR = 0;
+               }   
+            }
+            if(strcmp(v, "-n") == 0) {
+               optionN = 1;
+               optionR = 0;   //change back to 0, bale pwede na ulit siya mag -r since nawala yung data
             }
 
-            console_history(head, tail, clear, delSpecific, toDel, optionR);
+            console_history(head, tail, clear, delSpecific, toDel, optionR, optionN);
 
             u=strtok(0," ");
          } while (u!=0);
@@ -1038,11 +1183,10 @@ int console_new(){
 void console_main(){
 
    //global variable hist_node's head & tail
-   HIST_NODE *head=(HIST_NODE*)malloc(sizeof(HIST_NODE)); 
-   HIST_NODE *tail=(HIST_NODE*)malloc(sizeof(HIST_NODE)); 
+   head=(hist_node*)malloc(sizeof(hist_node)); 
+   tail=(hist_node*)malloc(sizeof(hist_node)); 
    head->next = head->prev = tail->next = tail->prev = NULL; //dummy nodes!!! =)
-   //file_history_head
-   //file_history_tail
+ 
    DEX32_DDL_INFO *myddl=0;
    fg_processinfo *myfg;
    char s[256]="";

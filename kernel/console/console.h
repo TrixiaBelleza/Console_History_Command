@@ -37,7 +37,7 @@ typedef struct histtag{
    int offset;
    struct histtag *prev;
    struct histtag *next;
-}HIST_NODE;
+}hist_node;
 
 
 int console_first = 0;
@@ -59,7 +59,7 @@ void prompt_parser(const char *promptstr,char *prompt);
 int console_ls_sortsize(vfs_node *n1,vfs_node *n2);
 int console_ls_sortname(vfs_node *n1,vfs_node *n2);
 void console_ls(int style, int sortmethod);
-int console_execute(const char *str, HIST_NODE **head, HIST_NODE **tail);
+int console_execute(const char *str, hist_node **head, hist_node **tail);
 int console_new();
 void console_main();
 
