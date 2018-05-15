@@ -122,6 +122,7 @@ void delete(hist_node **head, hist_node **tail, int delete_offset) {
          toDelete->prev->next=NULL;
          toDelete->next->prev=NULL;
          free(toDelete);
+         printf("Successfully deleted history offset: %i\n", toDel);
 
          return;
       }
@@ -129,6 +130,7 @@ void delete(hist_node **head, hist_node **tail, int delete_offset) {
          toDelete->prev->next = toDelete->next;
          toDelete->next->prev = toDelete->prev;
          free(toDelete);
+         printf("Successfully deleted history offset: %i\n", toDel);
 
          return;
       }
@@ -671,13 +673,7 @@ void kernel_file_io_demo(hist_node **head){
  
       hist_node *temp = (*head)->next;
 
-      fp=openfilex("sample.txt",FILE_WRITE);
-  
-   // fwrite(temp->input,strlen(temp->input),1,fp);
-   // fwrite("\n", 1, 1, fp);
-  
-   // temp=temp->next;
-   // fwrite(temp->input,strlen(temp->input),1,fp);
+      fp=openfilex("history.txt",FILE_WRITE);
 
       while(temp->next!=NULL){
          fwrite(temp->input,strlen(temp->input),1,fp);
@@ -691,9 +687,29 @@ void kernel_file_io_demo(hist_node **head){
 
 }
 
+void file_append(hist_node **head) {
+
+   char buf[10];
+   file_PCB *fp;
+   if(*head!=NULL) {
+ 
+      hist_node *temp = (*head)->next;
+
+      fp=openfilex("history.txt",FILE_APPEND);
+
+      while(temp->next!=NULL){
+         fwrite(temp->input,strlen(temp->input),1,fp);
+         fwrite("\n", 1, 1, fp);
+
+         temp=temp->next;
+      }
+   }
+
+   fclose(fp);
+}
 
 
-void console_history(hist_node **head, hist_node **tail, int clear, int delSpecific, int toDel, int optionR, int optionN, int optionW) {
+void console_history(hist_node **head, hist_node **tail, int clear, int delSpecific, int toDel, int optionR, int optionN, int optionW, int optionA) {
  
    if(clear==1) {
       deleteAll(head, tail);
@@ -703,7 +719,6 @@ void console_history(hist_node **head, hist_node **tail, int clear, int delSpeci
    }
    if(delSpecific==1) {
       delete(head, tail, toDel);
-      printf("Successfully deleted history offset: %i\n", toDel);
    }
    if(optionR==1) {
       file_PCB *file;
@@ -738,8 +753,11 @@ void console_history(hist_node **head, hist_node **tail, int clear, int delSpeci
    }
    if(optionW == 1) {
       printf("entered option for filewriting\n");
-      kernel_file_io_demo(head);
-     
+      kernel_file_io_demo(head); 
+   }
+   if(optionA == 1) {
+      printf("entered option for file append\n");
+      file_append(head);
    }
 }
 /* ==================================================================
@@ -851,6 +869,7 @@ int console_execute(const char *str, hist_node **head, hist_node **tail){
       int optionR = 0;
       int optionN=0;
       int optionW=0;
+      int optionA=0;
       char *u2;
       file_PCB *f;
 
@@ -883,8 +902,11 @@ int console_execute(const char *str, hist_node **head, hist_node **tail){
             if(strcmp(v, "-w") == 0) {
                optionW = 1;
             }
+            if(strcmp(v, "-a") == 0) {
+               optionA = 1;
+            }
 
-            console_history(head, tail, clear, delSpecific, toDel, optionR, optionN, optionW);
+            console_history(head, tail, clear, delSpecific, toDel, optionR, optionN, optionW, optionA);
 
             u=strtok(0," ");
          } while (u!=0);
