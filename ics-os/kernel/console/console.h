@@ -42,7 +42,7 @@ typedef struct  __attribute__((packed)) histtag{
 
 int console_first = 0;
 void console_main();
-void getstring(char *buf,DEX32_DDL_INFO *dev);
+void getstring(char *buf,DEX32_DDL_INFO *dev, hist_node **cmdhead, hist_node **cmdtail);
 void meminfo();
 int delfile(char *fname);
 int user_fork();
