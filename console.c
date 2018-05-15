@@ -8,17 +8,14 @@
                 
     DEX educational extensible operating system 1.0 Beta
     Copyright (C) 2004  Joseph Emmanuel DL Dayo
-
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
     (at your option) any later version.
-
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. 
@@ -31,9 +28,13 @@
 int count=0;
 int offset_count=0;
 
-HIST_NODE *createNewElement(char *inputCommand) {
-   HIST_NODE *newNode;
-   newNode = (HIST_NODE*)malloc(sizeof(HIST_NODE));
+hist_node *head; 
+hist_node *tail;
+hist_node *list_head; 
+
+hist_node *createNewElement(char *inputCommand) {
+   hist_node *newNode;
+   newNode = (hist_node*)malloc(sizeof(hist_node));
    newNode->prev = NULL;
    strcpy(newNode->input, inputCommand);
    newNode->offset=offset_count;
@@ -43,8 +44,21 @@ HIST_NODE *createNewElement(char *inputCommand) {
    return newNode;
 }
 
-void insertAtHead(HIST_NODE **head, HIST_NODE **tail, HIST_NODE *newNode) {
+hist_node *createNewNode(char *inputCommand, int index) {
+   hist_node *newNode;
+   newNode = (hist_node*)malloc(sizeof(hist_node));
+   newNode->prev = NULL;
+   strcpy(newNode->input, inputCommand);
+   newNode->offset=index;
+   newNode->next = NULL;
+   offset_count++;
+
+   return newNode;
+}
+
+void insertAtHead(hist_node **head, hist_node **tail, hist_node *newNode) {
    if((*head)->next==NULL) {
+      // printf("entered insertAtHead\n");
       (*head)->next=newNode;
       newNode->prev=*head;
       newNode->next=*tail;
@@ -52,8 +66,8 @@ void insertAtHead(HIST_NODE **head, HIST_NODE **tail, HIST_NODE *newNode) {
       return; //acts like a break;
    }
    else{
-      HIST_NODE *after=(*head)->next;
-      HIST_NODE *before=after->prev;
+      hist_node *after=(*head)->next;
+      hist_node *before=after->prev;
 
       newNode->next=after;
       newNode->prev=before;
@@ -63,9 +77,23 @@ void insertAtHead(HIST_NODE **head, HIST_NODE **tail, HIST_NODE *newNode) {
    }
 }
 
-void print_history(HIST_NODE **head) {
+void insertAtTail(hist_node **head, hist_node **tail, hist_node *newNode) {
+   hist_node *after = (*head)->next;
+   hist_node *before = after->prev;
+
+   while(after != NULL) {
+      if(after->next==NULL) {
+         newNode->next = after;
+         newNode->prev = before;
+         before->next = newNode;
+         after->prev = newNode;
+         return; //acts like a break
+      }
+   }
+}
+void print_history(hist_node **head) {
    if(*head!=NULL) {
-      HIST_NODE *temp=(*head)->next;
+      hist_node *temp=(*head)->next;
       while(temp->next!=NULL){
          printf("%i\t", temp->offset);
          printf("%s\n", temp->input);
@@ -75,8 +103,8 @@ void print_history(HIST_NODE **head) {
   
 }
 
-HIST_NODE* searchNode(HIST_NODE *head, int lookfor_offset){
-   HIST_NODE *ptr=head->next;
+hist_node* searchNode(hist_node *head, int lookfor_offset){
+   hist_node *ptr=head->next;
   
    while(ptr->next!=NULL){
       if(lookfor_offset == ptr->offset){
@@ -88,9 +116,9 @@ HIST_NODE* searchNode(HIST_NODE *head, int lookfor_offset){
    return ptr=NULL;
 }
 
-void delete(HIST_NODE **head, HIST_NODE **tail, int delete_offset) {
-   HIST_NODE *toDelete=searchNode(*head, delete_offset);
-   HIST_NODE *ptr=*head;
+void delete(hist_node **head, hist_node **tail, int delete_offset) {
+   hist_node *toDelete=searchNode(*head, delete_offset);
+   hist_node *ptr=*head;
    if (toDelete!=NULL){
       //update offset counts
       while(ptr->next!=toDelete){
@@ -104,7 +132,6 @@ void delete(HIST_NODE **head, HIST_NODE **tail, int delete_offset) {
          toDelete->next->prev=NULL;
          free(toDelete);
 
-         printf("Successfully deleted history offset: %i\n", delete_offset);
          return;
       }
       else{
@@ -112,21 +139,20 @@ void delete(HIST_NODE **head, HIST_NODE **tail, int delete_offset) {
          toDelete->next->prev = toDelete->prev;
          free(toDelete);
 
-         printf("Successfully deleted history offset: %i\n", delete_offset);
          return;
       }
    }
 }
 
-void deleteAll(HIST_NODE **head, HIST_NODE **tail) {
-   HIST_NODE *ptr = (*head)->next;
+void deleteAll(hist_node **head, hist_node **tail) {
+   hist_node *ptr = (*head)->next;
    while(ptr->next!=NULL) {
       delete(head,tail,ptr->offset);
       ptr=ptr->next;
    }
 }
 
-void destroyList(HIST_NODE **head, HIST_NODE **tail) {
+void destroyList(hist_node **head, hist_node **tail) {
    while((*head)->next != NULL) {
       *head = (*head)->next;
       free((*head)->prev);
@@ -135,11 +161,74 @@ void destroyList(HIST_NODE **head, HIST_NODE **tail) {
    free(*tail);
 }
 
+void importCommand(hist_node **head, hist_node **tail){
+   char command[999];
+   int line = 1;
+   file_PCB *file;
+   file = openfilex("/icsos/icsos.hlp",FILE_READ);
+   if(file != 0){
+      do{
+         if(line > 4){
+            char linebuffer[512],temp[512],*str,*script_command;    
+         
+            //obtain a line from the file
+            fgets(linebuffer,512,file);
+            
+            // printf("%s", linebuffer);
+            str = strtok(linebuffer,"\n");
+            
+            strcpy(temp,str);
+
+            script_command = strtok(temp,"- ");
+            strcpy(command,script_command);
+            insertAtHead(head, tail, createNewNode(command, 0));
+         }else{ line ++; }
+
+      }while (!feof(file));
+     
+   }
+}
+
+void exportHistory(){
+   file_PCB *file;
+   file = openfilex("/icsos/history.txt",FILE_READ);
+
+   
+}
+
+char * historyUp(hist_node **ptr){
+   if((*ptr)->next != NULL){
+      if((*ptr) != tail){
+         (*ptr) = (*ptr)->next;
+         return (*ptr)->input;
+      }
+   }
+   return NULL;
+}
+
+char * historyDown(hist_node **ptr){
+   if((*ptr)->prev != NULL){
+
+      if((*ptr) != head){
+         (*ptr) = (*ptr)->prev;
+         return (*ptr)->input;
+      }
+   }
+   return NULL;
+}
+
 /*A console mode get string function terminates
 upon receving \r */
-void getstring(char *buf, DEX32_DDL_INFO *dev){
+
+void getstring(char *buf, DEX32_DDL_INFO *dev, hist_node **cmdhead, hist_node **cmdtail){
    unsigned int i=0;
    char c;
+   int j;
+
+   hist_node *ptr = head;
+   int end=0;
+   int start=0;
+
 
    do{
       c=getch();
@@ -159,17 +248,119 @@ void getstring(char *buf, DEX32_DDL_INFO *dev){
             Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),' ',Dex32GetAttb(dev));
          };
       }else{
-         if (i<256){  //maximum command line is only 255 characters
-            Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),buf[i]=c,Dex32GetAttb(dev));
-            i++;
-            Dex32SetX(dev,Dex32GetX(dev)+1);     
-            if (Dex32GetX(dev)>79){
+      if(c == -105) {
+         while(i>0){
+            i--;
+            Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),' ',Dex32GetAttb(dev));
+            Dex32SetX(dev,Dex32GetX(dev)-1);
+         }
+         strcpy(buf, historyUp(&ptr));
+         if(start == 1) start=0;
+         if(ptr == tail){
+            end = 1;
+         }
+         if(end != 1){
+            for(int j=0; j<strlen(buf); j++){
+               i++;
+               Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),buf[j],Dex32GetAttb(dev));
+               Dex32SetX(dev,Dex32GetX(dev)+1);
+            }
+           
+         }
+      }else
+      if(c == -104) {
+         while(i>0){
+            i--;
+            Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),' ',Dex32GetAttb(dev));
+            Dex32SetX(dev,Dex32GetX(dev)-1);
+         }
+         strcpy(buf, historyDown(&ptr));
+         if(end == 1) end=0;
+         if(ptr == head){
+            start = 1;
+         }
+         if(start != 1){
+            for(int j=0; j<strlen(buf); j++){
+               i++;
+               Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),buf[j],Dex32GetAttb(dev));
+               Dex32SetX(dev,Dex32GetX(dev)+1);
+            }
+         }
+         
+      }else
+      if(c == '\t'){
+         hist_node *cmdH = (hist_node*)malloc(sizeof(hist_node));
+         hist_node *cmdT = (hist_node*)malloc(sizeof(hist_node));
+         cmdH->next = cmdH->prev = cmdT->next = cmdT->prev = NULL; //dummy nodes!!! =)
+
+         buf[i]=0;
+         int counter = 0;
+         // printf("%s\n", buf);
+         hist_node *cmdPtr = (*cmdhead);
+         while(cmdPtr->next != (*cmdtail)){
+            if(strncmp(cmdPtr->input, buf, strlen(buf)) == 0){
+               insertAtHead(&cmdH, &cmdT, createNewNode(cmdPtr->input, 0));
+               // printf("-- %s\n", cmdH->next->input);
+               counter++;
+            }
+            cmdPtr = cmdPtr->next;
+         }
+         // break;
+         // printf("counter %d\n", counter);
+         if(counter == 1){
+            strcpy(buf, cmdH->next->input);
+            for(int j=i; j<strlen(buf); j++){
+               i++;
+               Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),buf[j],Dex32GetAttb(dev));
+               Dex32SetX(dev,Dex32GetX(dev)+1);
+            }
+            
+         }else if(counter > 1){
+
+            cmdPtr = cmdH->next;
+            char *tmp;
+            while(cmdPtr != cmdT){
+               strcpy(tmp, cmdPtr->input);
                Dex32SetX(dev,0);
                Dex32NextLn(dev);
-            };
+               for(int j=0; j<strlen(tmp); j++){
+                  Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),tmp[j],Dex32GetAttb(dev));
+                  Dex32SetX(dev,Dex32GetX(dev)+1);
+               }
+               cmdPtr = cmdPtr->next;
+               counter--;
+            }
+            char console_fmt[256]="%cdir% %% ";
+            char console_prompt[256]="cmd >";
+
+            strcpy(tmp, "");
+            Dex32SetX(dev,0);
+            Dex32NextLn(dev);
+            prompt_parser(console_fmt,console_prompt);
+            textcolor(LIGHTBLUE);
+            printf("%s",console_prompt); 
+            textcolor(WHITE);
+
+            for(int j=0; j<strlen(buf); j++){
+               Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),buf[j],Dex32GetAttb(dev));
+               Dex32SetX(dev,Dex32GetX(dev)+1);
+            }
+         }
+         destroyList(cmdH, cmdT);
+         cmdPtr = NULL;
+         cmdH = NULL;
+         cmdT = NULL;
+      }else
+      if (i<256){  //maximum command line is only 255 characters
+         Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),buf[i]=c,Dex32GetAttb(dev));
+         i++;
+         Dex32SetX(dev,Dex32GetX(dev)+1);     
+         if (Dex32GetX(dev)>79){
+            Dex32SetX(dev,0);
+            Dex32NextLn(dev);
          };
       };
-
+   };
       Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),' ',Dex32GetAttb(dev));
       update_cursor(Dex32GetY(dev),Dex32GetX(dev));
    }while (c!='\r');
@@ -575,18 +766,30 @@ void console_ls(int style, int sortmethod){
    free(buffer);
     
 };
+
+void console_history(hist_node **head, hist_node **tail, int clear, int delSpecific, int toDel) {
+   if(clear==1) {
+      deleteAll(head, tail);
+      printf("Successfully deleted history.\n");
+      offset_count = 0; //reset to 0
+   }
+   if(delSpecific==1) {
+      delete(head, tail, toDel);
+      printf("Successfully deleted history offset: %i\n", toDel);
+
+   }
+}
 /* ==================================================================
    console_execute(const char *str):
    * This command is used to execute a console string.
-
 */
-int console_execute(const char *str, HIST_NODE **head, HIST_NODE **tail){
+int console_execute(const char *str, hist_node **head, hist_node **tail, hist_node **list_head){
    count++;
    char temp[512];
    char *u;
    int command_length = 0;
    signed char mouse_x, mouse_y, last_mouse_x=0, last_mouse_y=0;
-  
+   // FILE *fp;
    //make a copy so that strtok wouldn't ruin str
    strcpy(temp,str);
 
@@ -602,7 +805,7 @@ int console_execute(const char *str, HIST_NODE **head, HIST_NODE **tail){
    if (u[command_length - 1] == ':'){
       char temp[512];
       sprintf(temp,"cd %s",u);            
-      console_execute(temp, head, tail); 
+      console_execute(temp, head, tail, list_head); 
    }else 
    if (strcmp(u,"fgman") == 0){  //--  Foreground manager
       fg_set_state(1);
@@ -666,7 +869,7 @@ int console_execute(const char *str, HIST_NODE **head, HIST_NODE **tail){
             if (rmdir(u2) != -1)
                printf("Remove directory successful!\n");
             else
-               printf("Error while removing directory.\n");
+            printf("Error while removing directory.\n");
          }else{
             printf("Remove directory cancelled.\n");
          }
@@ -674,10 +877,14 @@ int console_execute(const char *str, HIST_NODE **head, HIST_NODE **tail){
          printf("Invalid parameter.\n"); 
       }
    }else
-   if(strcmp(u,"history") == 0) {
+   if(strcmp(u,"history") == 0) { //-- Displays command history
       char v[20];
-      int toDel;
+      char command_from_file[250];
+      int toDel=-1;
+      int clear=0;
+      int delSpecific=0;
       char *u2, *u3;
+      file_PCB *f;
       u=strtok(0," ");
       u2=strtok(0, " ");
       u3=strtok(0, " ");
@@ -685,14 +892,58 @@ int console_execute(const char *str, HIST_NODE **head, HIST_NODE **tail){
          do {
             strcpy(v,u);
             if (strcmp(v,"-c") == 0) {    //delete all
-               deleteAll(head, tail);
-               printf("Successfully deleted history.\n");
-               offset_count = 0; //reset to 0
+               clear=1;
             }
             if (strcmp(v, "-d") == 0) {   //delete specific offset
                toDel=atoi(u2);
-               delete(head, tail, toDel);
+               delSpecific=1;
+            }  
+            if(strcmp(v, "-n") == 0) {
+               //just print current session's history
+            
             }
+            if (strcmp(v, "-a") == 0) {   //delete specific offset
+               // importHistory(head, tail, list_head);
+            }
+            if(strcmp(v, "-r") == 0) {
+               //Read the history file then append the contents to current session's history list
+               // vfs_stat filestat;
+               int size;
+               int counter=0;
+               int command_from_file_size;
+               char *token;
+               f=openfilex("history.txt",FILE_READ);
+               if(f!=0) {
+                  printf("hi\n");
+                  // vfs_stat fileinfo;
+                  // fstat(f, &fileinfo);
+                  // size = fileinfo.st_size;
+                  fread(command_from_file, 250, 1, f);
+                  command_from_file[strlen(command_from_file)-2] = '\0';
+                  printf("read: %s\n", command_from_file);
+                  printf("size: %i\n", strlen(command_from_file));
+                  command_from_file_size = strlen(command_from_file);
+                  strtok(command_from_file, "\n");
+                  counter = strlen(command_from_file)+1;
+                  insertAtHead(head, tail, createNewElement(command_from_file));
+                  
+                  while(counter < command_from_file_size) {
+
+                     token = strtok(NULL, "\n");
+                     printf("%s\n", token);
+                     insertAtHead(head, tail, createNewElement(token));
+                     // insertAtTail(head, tail, createNewElement(command_from_file));
+                     counter += strlen(token);
+                  }
+
+               }
+               fclose(f);
+               print_history(head);
+             
+            }
+
+            console_history(head, tail, clear, delSpecific, toDel);
+
             u=strtok(0," ");
          } while (u!=0);
       }else  print_history(head);
@@ -760,7 +1011,7 @@ int console_execute(const char *str, HIST_NODE **head, HIST_NODE **tail){
       clrscr();
    }else
    if (strcmp(u,"help") == 0){         //-- Displays this help screen.
-      console_execute("type /icsos/icsos.hlp", head, tail);
+      console_execute("type /icsos/icsos.hlp", head, tail, list_head);
    }else
    if (strcmp(u,"umount") == 0){       //-- Unmounts a mounted device. Args: <mount point>
       char *u =strtok(0," ");
@@ -805,13 +1056,12 @@ int console_execute(const char *str, HIST_NODE **head, HIST_NODE **tail){
    if (strcmp(u,"run") == 0){          //-- Executes a batch file or script. Args: <script>
       u=strtok(0," ");
       if (u!=0){
-         if (script_load(u) == -1){
+         if (script_load(u, head, tail, list_head) == -1){
             printf("console: Error loading script file.\n");
          };            
       }
    }else  
-   if (strcmp(u,"add") == 0)
-         {   //-- Adds two integers. Args: <num1> <num2>
+   if (strcmp(u,"add") == 0){   //-- Adds two integers. Args: <num1> <num2>
             int a, b;
             u = strtok(0," ");
             a = atoi(u);
@@ -938,7 +1188,7 @@ int console_execute(const char *str, HIST_NODE **head, HIST_NODE **tail){
       if (u!=0){
          if (module_unload_library(u) == -1)
             printf("Error unloading library");
-   	};
+      };
    }else
    if (strcmp(u,"demo_graphics") == 0){   //-- Runs the graphics demonstration.
       demo_graphics();
@@ -980,11 +1230,18 @@ int console_new(){
 
 void console_main(){
 
-   //global variable hist_node's head & tail
-   HIST_NODE *head=(HIST_NODE*)malloc(sizeof(HIST_NODE)); 
-   HIST_NODE *tail=(HIST_NODE*)malloc(sizeof(HIST_NODE)); 
+   head=(hist_node*)malloc(sizeof(hist_node));
+   tail=(hist_node*)malloc(sizeof(hist_node));
    head->next = head->prev = tail->next = tail->prev = NULL; //dummy nodes!!! =)
+   list_head = head;
 
+   hist_node *commandHead = (hist_node*)malloc(sizeof(hist_node));
+   hist_node *commandTail = (hist_node*)malloc(sizeof(hist_node));
+   commandHead->next = commandHead->prev = commandTail->next = commandTail->prev = NULL; //dummy nodes!!! =)
+
+   importCommand(&commandHead, &commandTail);
+   //file_history_head
+   //file_history_tail
    DEX32_DDL_INFO *myddl=0;
    fg_processinfo *myfg;
    char s[256]="";
@@ -1006,7 +1263,7 @@ void console_main(){
    strcpy(last,"");
     
    if (console_first == 0) 
-      script_load("/icsos/autoexec.bat");
+      script_load("/icsos/autoexec.bat", head, tail, list_head);
     
    console_first++;  
    do{
@@ -1017,12 +1274,12 @@ void console_main(){
       textcolor(LIGHTBLUE);
       printf("%s",console_prompt);  
       textcolor(WHITE);
-      
+
 
       if (strcmp(s,"@@")!=0 && strcmp(s,"!!")!=0)
          strcpy(last,s);
     
-      getstring(s, myddl);
+      getstring(s, myddl, &commandHead, &commandTail);
    
       if (strcmp(s,"!")==0){
          sendtokeyb(last,&_q);
@@ -1032,8 +1289,8 @@ void console_main(){
          sendtokeyb("\r",&_q);
       }
       else   
-         console_execute(s, &head, &tail);
+         console_execute(s, &head, &tail, &list_head);
    } while (1);
    destroyList(head, tail);
+   destroyList(commandHead, commandTail);
 };
-
