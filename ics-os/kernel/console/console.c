@@ -8,17 +8,14 @@
                 
     DEX educational extensible operating system 1.0 Beta
     Copyright (C) 2004  Joseph Emmanuel DL Dayo
-
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
     (at your option) any later version.
-
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. 
@@ -28,12 +25,17 @@
 #include "console.h"
 
 int count=0;
-int offset_count=0;
-int offset_min = 0;
-int offset_max = 0;
+int offset_count=0;        //keeps track of the offset count so creating a new node will be an offset_count++
+int offset_min = 0;        //gets the offset minimum upon reading the file. Where the offset was when the file was read
+int offset_max = 0;        //gets the offset maximum upon reading the file. Where the offset stopped when the file was done reading.
 int optionRcount=0;       //made it global so machechange siya everytime naeexecute yung console_execute
-hist_node *head;
+hist_node *head;           //declare the head and tail nodes
 hist_node *tail;
+
+/******************************************************** 
+   This function creates a new element or node 
+   for a new input command and is ready for insertion
+*********************************************************/
 
 hist_node *createNewInputCommand(char *inputCommand) {
    hist_node *newNode;
@@ -46,7 +48,7 @@ hist_node *createNewInputCommand(char *inputCommand) {
 
    return newNode;
 }
-
+/*A function that creates nodes for commands from commands list*/
 hist_node *createNewAvailableCmd(char *inputCommand, int index) {
    hist_node *newNode;
    newNode = (hist_node*)malloc(sizeof(hist_node));
@@ -54,20 +56,23 @@ hist_node *createNewAvailableCmd(char *inputCommand, int index) {
    strcpy(newNode->input, inputCommand);
    newNode->offset=index;
    newNode->next = NULL;
-   offset_count++;
 
    return newNode;
 }
+
+/******************************************************** 
+   This function inserts a node at head
+*********************************************************/
 void insertAtHead(hist_node **head, hist_node **tail, hist_node *newNode) {
-   if((*head)->next==NULL) {
-      // printf("entered insertAtHead\n");
+   if((*head)->next==NULL) {  //check if head is null
       (*head)->next=newNode;
       newNode->prev=*head;
       newNode->next=*tail;
       (*tail)->prev=newNode;
-      return; //acts like a break;
+      return; 
    }
-   else{
+   else{   //if may laman
+
       hist_node *after=(*head)->next;
       hist_node *before=after->prev;
 
@@ -75,24 +80,38 @@ void insertAtHead(hist_node **head, hist_node **tail, hist_node *newNode) {
       newNode->prev=before;
       after->prev=newNode;
       before->next=newNode;
-      return; //acts like a break
+      return; 
    }
 }
 
+/******************************************************** 
+   This function inserts a node at tail
+*********************************************************/
 void insertAtTail(hist_node **head, hist_node **tail, hist_node *newNode) {
-   hist_node *after = (*head)->next;
-   hist_node *before = after->prev;
+   if((*tail)->next==NULL) {
+   
+      (*tail)->prev=newNode;
+      newNode->prev=*head;
+      newNode->next=*tail;
+      (*head)->next=newNode;
+      return; 
+   }
+   else{
+      hist_node *before=(*tail)->prev;
+      hist_node *after=before->next;
 
-   while(after != NULL) {
-      if(after->next==NULL) {
-         newNode->next = after;
-         newNode->prev = before;
-         before->next = newNode;
-         after->prev = newNode;
-         return; //acts like a break
-      }
+      newNode->next=after;
+      newNode->prev=before;
+      after->prev=newNode;
+      before->next=newNode;
+      return; 
    }
 }
+
+
+/***********************************************************
+   This function displays all elements in the history list
+***********************************************************/
 
 void print_history(hist_node **head) {
    if(*head!=NULL) {
@@ -106,6 +125,9 @@ void print_history(hist_node **head) {
   
 }
 
+/*********************************************************** 
+   This function searches for a node using the given offset
+************************************************************/
 hist_node* searchNode(hist_node *head, int lookfor_offset){
    hist_node *ptr=head->next;
   
@@ -119,10 +141,16 @@ hist_node* searchNode(hist_node *head, int lookfor_offset){
    return ptr=NULL;
 }
 
+/******************************************************** 
+   This function deletes a node from the history list
+   wherein it finds the given offset in the history list
+   then deletes it.
+*********************************************************/
 void delete(hist_node **head, hist_node **tail, int delete_offset) {
    hist_node *toDelete=searchNode(*head, delete_offset);
    hist_node *ptr=*head;
    if (toDelete!=NULL){
+
       //update offset counts
       while(ptr->next!=toDelete){
          ptr->next->offset = (ptr->next->offset) - 1;
@@ -137,7 +165,7 @@ void delete(hist_node **head, hist_node **tail, int delete_offset) {
 
          return;
       }
-      else{
+      else{                              //if more than one element
          toDelete->prev->next = toDelete->next;
          toDelete->next->prev = toDelete->prev;
          free(toDelete);
@@ -147,13 +175,24 @@ void delete(hist_node **head, hist_node **tail, int delete_offset) {
    }
 }
 
+/******************************************************** 
+   This function traverses all elements of the history
+   list then deletes each node.
+*********************************************************/
 void deleteAll(hist_node **head, hist_node **tail) {
    hist_node *ptr = (*head)->next;
+    //traverse then delete
    while(ptr->next!=NULL) {
       delete(head,tail,ptr->offset);
       ptr=ptr->next;
    }
 }
+
+
+/******************************************************** 
+   This function deletes everything and frees the head
+   and tail pointers.
+*********************************************************/
 
 void destroyList(hist_node **head, hist_node **tail) {
    while((*head)->next != NULL) {
@@ -164,17 +203,17 @@ void destroyList(hist_node **head, hist_node **tail) {
    free(*tail);
 }
 
-char * historyUp(hist_node **ptr){
+char * historyUp(hist_node **ptr){  // getting the prev command
    if((*ptr)->next != NULL){
       if((*ptr) != tail){
          (*ptr) = (*ptr)->next;
          return (*ptr)->input;
       }
    }
-   return NULL;
+   return;
 }
 
-char * historyDown(hist_node **ptr){
+char * historyDown(hist_node **ptr){ //getting the next command
    if((*ptr)->prev != NULL){
 
       if((*ptr) != head){
@@ -182,9 +221,9 @@ char * historyDown(hist_node **ptr){
          return (*ptr)->input;
       }
    }
-   return NULL;
+   return;
 }
-
+/*a funtion that gets all commands then saves them to a linked list*/
 void importCommand(hist_node **head, hist_node **tail){
    char command[999];
    int line = 1;
@@ -198,11 +237,10 @@ void importCommand(hist_node **head, hist_node **tail){
             //obtain a line from the file
             fgets(linebuffer,512,file);
             
-            // printf("%s", linebuffer);
             str = strtok(linebuffer,"\n");
             
+            //asving command to linked list
             strcpy(temp,str);
-
             script_command = strtok(temp,"- ");
             strcpy(command,script_command);
             insertAtHead(head, tail, createNewAvailableCmd(command, 0));
@@ -213,7 +251,12 @@ void importCommand(hist_node **head, hist_node **tail){
    }
 }
 
-void kernel_file_io_demo(hist_node **head){
+/********************************************************** 
+   This function writes the contents of the history list 
+   to the history file thus overwriting the file.
+***********************************************************/
+
+void history_file_write(hist_node **head){
   
    char buf[10];
    file_PCB *fp;
@@ -221,19 +264,27 @@ void kernel_file_io_demo(hist_node **head){
  
       hist_node *temp = (*head)->next;
 
-      fp=openfilex("history.txt",FILE_WRITE);
+      fp=openfilex("/icsos/history.txt",FILE_WRITE);
+      if(fp != 0){
+        
+           //traverse the history list
+         while(temp->next!=NULL){
+            fwrite(temp->input,strlen(temp->input),1,fp);
+            fwrite("\n", 1, 1, fp);
 
-      while(temp->next!=NULL){
-         fwrite(temp->input,strlen(temp->input),1,fp);
-         fwrite("\n", 1, 1, fp);
-
-         temp=temp->next;
+            temp=temp->next;
+         }
       }
    }
 
    fclose(fp);
 
 }
+
+/********************************************************** 
+   This function appends the contents of the history list 
+   to the history file without overwriting the file.
+***********************************************************/
 
 void file_append(hist_node **head) {
 
@@ -243,22 +294,32 @@ void file_append(hist_node **head) {
 
       hist_node *temp = (*head)->next;
       
-      fp=openfilex("history.txt",FILE_APPEND);
+      fp=openfilex("/icsos/history.txt",FILE_APPEND);
+      if(fp != 0){
+          //traverse the history list
+         while(temp->next!=NULL){
 
-      while(temp->next!=NULL){
-         fwrite(temp->input,strlen(temp->input),1,fp);
-         fwrite("\n", 1, 1, fp);
+              //write to file 
+            fwrite(temp->input,strlen(temp->input),1,fp);
+            fwrite("\n", 1, 1, fp);
 
-         temp=temp->next;
+            temp=temp->next;
+         }
       }
    }
 
    fclose(fp);
 }
 
+
+/********************************************************** 
+  This is a history function where in it calls the 
+  deleteAll, delete, read, write, append and print history 
+  functions depending on the request of the user.
+***********************************************************/
 void console_history(hist_node **head, hist_node **tail, char *v, char *token3) {
    
-   if (strcmp(v,"-c") == 0) {    //delete all
+  if (strcmp(v,"-c") == 0) {    //delete all
       deleteAll(head, tail);
       printf("Successfully deleted history.\n");
       offset_count = 0; //reset to 0
@@ -270,13 +331,14 @@ void console_history(hist_node **head, hist_node **tail, char *v, char *token3) 
       delete(head, tail, toDel);      
    }  
    
-   if(strcmp(v, "-r") == 0) {  
-      //Read the history file then append the contents to current session's history list
+   //Read the history file then append the contents to current session's history list
+   if(strcmp(v, "-r") == 0) {    
       file_PCB *file;
       file = openfilex("/icsos/history.txt", FILE_READ);
       offset_min = offset_count;
       offset_max = offset_count;
-      if(file != 0) {
+      if(file != 0 && optionRcount!=1) {        //optionRcount limits filereading. Dapat once na naread, di na pwede magread ulit unless nag -n or nag -c. 
+         optionRcount=1;
          printf("Reading the file, please wait...\n");
          do {
             char linebuffer[512], temp[512], *str;
@@ -294,21 +356,24 @@ void console_history(hist_node **head, hist_node **tail, char *v, char *token3) 
       fclose(file);
    }
 
+   //Shows only the history of the current session
    if(strcmp(v, "-n") == 0) {
-     int count = offset_min;
+      int count = offset_min;
       int toDel = offset_min;
+
       for(count = offset_min; count < offset_max; count++) {
          delete(head, tail, toDel);
       }
       printf("Operation has been successfully executed!\n");
+      optionRcount=0;   //this resets the optionRcount so that pwede na ulit mag fileread.
    }
 
-   if(strcmp(v, "-w") == 0) {
+   if(strcmp(v, "-w") == 0) {       //writes the history list to history file thus overwriting the file.
       printf("Writing to file, please wait...\n");
-      kernel_file_io_demo(head); 
+      history_file_write(head); 
    }
 
-   if(strcmp(v, "-a") == 0) {
+   if(strcmp(v, "-a") == 0) {       //appends the history list to history file w/o overwriting it.
       printf("Appending to file, please wait...\n");
       file_append(head);
    }
@@ -346,17 +411,22 @@ void getstring(char *buf, DEX32_DDL_INFO *dev, hist_node **cmdhead, hist_node **
             Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),' ',Dex32GetAttb(dev));
          };
       }else{
-      if(c == -105) {
+      if(c == -105) { //arrow up
+         //deleting current command
          while(i>0){
             i--;
             Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),' ',Dex32GetAttb(dev));
             Dex32SetX(dev,Dex32GetX(dev)-1);
          }
+
          strcpy(buf, historyUp(&ptr));
+
+         //setting and checking ends
          if(start == 1) start=0;
-         if(ptr == tail){
+         if(ptr == tail || ptr->next == NULL){
             end = 1;
          }
+         //printing prev command
          if(end != 1){
             for(int j=0; j<strlen(buf); j++){
                i++;
@@ -366,17 +436,21 @@ void getstring(char *buf, DEX32_DDL_INFO *dev, hist_node **cmdhead, hist_node **
            
          }
       }else
-      if(c == -104) {
+      if(c == -104) { //arrow down
+         //deleting current command
          while(i>0){
             i--;
             Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),' ',Dex32GetAttb(dev));
             Dex32SetX(dev,Dex32GetX(dev)-1);
          }
          strcpy(buf, historyDown(&ptr));
+
+         //setting and checking ends
          if(end == 1) end=0;
-         if(ptr == head){
+         if(ptr == head || ptr->prev == NULL){
             start = 1;
          }
+         //printing the next command
          if(start != 1){
             for(int j=0; j<strlen(buf); j++){
                i++;
@@ -393,19 +467,18 @@ void getstring(char *buf, DEX32_DDL_INFO *dev, hist_node **cmdhead, hist_node **
 
          buf[i]=0;
          int counter = 0;
-         // printf("%s\n", buf);
+
+         //finding the command/s
          hist_node *cmdPtr = (*cmdhead);
          while(cmdPtr->next != (*cmdtail)){
             if(strncmp(cmdPtr->input, buf, strlen(buf)) == 0){
                insertAtHead(&cmdH, &cmdT, createNewAvailableCmd(cmdPtr->input, 0));
-               // printf("-- %s\n", cmdH->next->input);
                counter++;
             }
             cmdPtr = cmdPtr->next;
          }
-         // break;
-         // printf("counter %d\n", counter);
-         if(counter == 1){
+
+         if(counter == 1){  // one matches the initial character/s
             strcpy(buf, cmdH->next->input);
             for(int j=i; j<strlen(buf); j++){
                i++;
@@ -413,7 +486,7 @@ void getstring(char *buf, DEX32_DDL_INFO *dev, hist_node **cmdhead, hist_node **
                Dex32SetX(dev,Dex32GetX(dev)+1);
             }
             
-         }else if(counter > 1){
+         }else if(counter > 1){ // many match the initial character/s
 
             cmdPtr = cmdH->next;
             char *tmp;
@@ -428,6 +501,7 @@ void getstring(char *buf, DEX32_DDL_INFO *dev, hist_node **cmdhead, hist_node **
                cmdPtr = cmdPtr->next;
                counter--;
             }
+            //print the command prompt
             char console_fmt[256]="%cdir% %% ";
             char console_prompt[256]="cmd >";
 
@@ -439,6 +513,7 @@ void getstring(char *buf, DEX32_DDL_INFO *dev, hist_node **cmdhead, hist_node **
             printf("%s",console_prompt); 
             textcolor(WHITE);
 
+            //rewriting the inputted characters
             for(int j=0; j<strlen(buf); j++){
                Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),buf[j],Dex32GetAttb(dev));
                Dex32SetX(dev,Dex32GetX(dev)+1);
@@ -869,7 +944,6 @@ void console_ls(int style, int sortmethod){
 /* ==================================================================
    console_execute(const char *str):
    * This command is used to execute a console string.
-
 */
 int console_execute(const char *str, hist_node **head, hist_node **tail){
    count++;
@@ -985,7 +1059,7 @@ int console_execute(const char *str, hist_node **head, hist_node **tail){
       if (u != 0){
          do {
             strcpy(v,u);
-            
+            //v and u2 needs to be passed for getting the 2nd and 3rd tokens.
             console_history(head, tail, v, u2);
 
             u=strtok(0," ");
@@ -1105,8 +1179,7 @@ int console_execute(const char *str, hist_node **head, hist_node **tail){
          };            
       }
    }else  
-   if (strcmp(u,"add") == 0)
-         {   //-- Adds two integers. Args: <num1> <num2>
+   if (strcmp(u,"add") == 0) {   //-- Adds two integers. Args: <num1> <num2>
             int a, b;
             u = strtok(0," ");
             a = atoi(u);
@@ -1233,7 +1306,7 @@ int console_execute(const char *str, hist_node **head, hist_node **tail){
       if (u!=0){
          if (module_unload_library(u) == -1)
             printf("Error unloading library");
-   	};
+      };
    }else
    if (strcmp(u,"demo_graphics") == 0){   //-- Runs the graphics demonstration.
       demo_graphics();
