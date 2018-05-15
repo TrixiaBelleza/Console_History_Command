@@ -32,7 +32,7 @@
 #define SORT_NAME 0
 #define SORT_SIZE 1
 
-typedef struct histtag{
+typedef struct  __attribute__((packed)) histtag{
    char input[500];
    int offset;
    struct histtag *prev;

@@ -205,7 +205,6 @@ int vfs_directwrite(char *buf, int itemsize, int n, file_PCB* fhandle)
                 };
 
             };
-
            
             //tell the filesystem driver to write to the file
             if (fs->writefile!=0)

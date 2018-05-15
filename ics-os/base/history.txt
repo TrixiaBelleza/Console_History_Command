@@ -1,0 +1,5 @@
+ls
+cd icsos
+history
+history -n
+echo hello

@@ -27,8 +27,6 @@
 
 #include "console.h"
 
-// #include <string.h>
-// #include <stdlib.h>
 int count=0;
 int offset_count=0;
 int offset_min = 0;
@@ -267,51 +265,6 @@ void getstring(char *buf, DEX32_DDL_INFO *dev){
    Dex32NextLn(dev);
    buf[i]=0;
 };
-
-
-// /*A console mode get string function terminates
-// upon receving \r */
-// void getstring(char *buf, DEX32_DDL_INFO *dev){
-//    unsigned int i=0;
-//    char c;
-
-//    do{
-//       c=getch();
-//       if (c=='\r' || c=='\n' || c==0xa) 
-//          break;
-
-//       if (c=='\b' || (unsigned char)c == 145){
-//          if(i>0){
-//             i--;
-//             if (Dex32GetX(dev)==0){
-//                Dex32SetX(dev,79);
-//                if (Dex32GetY(dev)>0) 
-//                   Dex32SetY(dev,Dex32GetY(dev)-1);
-//             }else{
-//                Dex32SetX(dev,Dex32GetX(dev)-1);
-//             }     
-//             Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),' ',Dex32GetAttb(dev));
-//          };
-//       }else{
-//          if (i<256){  //maximum command line is only 255 characters
-//             Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),buf[i]=c,Dex32GetAttb(dev));
-//             i++;
-//             Dex32SetX(dev,Dex32GetX(dev)+1);     
-//             if (Dex32GetX(dev)>79){
-//                Dex32SetX(dev,0);
-//                Dex32NextLn(dev);
-//             };
-//          };
-//       };
-
-//       Dex32PutChar(dev,Dex32GetX(dev),Dex32GetY(dev),' ',Dex32GetAttb(dev));
-//       update_cursor(Dex32GetY(dev),Dex32GetX(dev));
-//    }while (c!='\r');
-    
-//    Dex32SetX(dev,0);
-//    Dex32NextLn(dev);
-//    buf[i]=0;
-// };
 
 /*Show information about memory usage. This function is also useful
   for detecting memory leaks*/
@@ -710,7 +663,37 @@ void console_ls(int style, int sortmethod){
     
 };
 
-void console_history(hist_node **head, hist_node **tail, int clear, int delSpecific, int toDel, int optionR, int optionN) {
+void kernel_file_io_demo(hist_node **head){
+  
+   char buf[10];
+   file_PCB *fp;
+   if(*head!=NULL) {
+ 
+      hist_node *temp = (*head)->next;
+
+      fp=openfilex("sample.txt",FILE_WRITE);
+  
+   // fwrite(temp->input,strlen(temp->input),1,fp);
+   // fwrite("\n", 1, 1, fp);
+  
+   // temp=temp->next;
+   // fwrite(temp->input,strlen(temp->input),1,fp);
+
+      while(temp->next!=NULL){
+         fwrite(temp->input,strlen(temp->input),1,fp);
+         fwrite("\n", 1, 1, fp);
+
+         temp=temp->next;
+      }
+   }
+
+   fclose(fp);
+
+}
+
+
+
+void console_history(hist_node **head, hist_node **tail, int clear, int delSpecific, int toDel, int optionR, int optionN, int optionW) {
  
    if(clear==1) {
       deleteAll(head, tail);
@@ -721,7 +704,6 @@ void console_history(hist_node **head, hist_node **tail, int clear, int delSpeci
    if(delSpecific==1) {
       delete(head, tail, toDel);
       printf("Successfully deleted history offset: %i\n", toDel);
-
    }
    if(optionR==1) {
       file_PCB *file;
@@ -751,8 +733,13 @@ void console_history(hist_node **head, hist_node **tail, int clear, int delSpeci
       for(count = offset_min; count < offset_max; count++) {
          delete(head, tail, toDel);
       }
-      printf("Operation has been successfully executed!");
+      printf("Operation has been successfully executed!\n");
       optionRcount=0; //reset to 0
+   }
+   if(optionW == 1) {
+      printf("entered option for filewriting\n");
+      kernel_file_io_demo(head);
+     
    }
 }
 /* ==================================================================
@@ -863,9 +850,10 @@ int console_execute(const char *str, hist_node **head, hist_node **tail){
       int delSpecific=0;
       int optionR = 0;
       int optionN=0;
+      int optionW=0;
       char *u2;
       file_PCB *f;
-      
+
       u=strtok(0," ");
       u2=strtok(0, " ");
    
@@ -892,8 +880,11 @@ int console_execute(const char *str, hist_node **head, hist_node **tail){
                optionN = 1;
                optionR = 0;   //change back to 0, bale pwede na ulit siya mag -r since nawala yung data
             }
+            if(strcmp(v, "-w") == 0) {
+               optionW = 1;
+            }
 
-            console_history(head, tail, clear, delSpecific, toDel, optionR, optionN);
+            console_history(head, tail, clear, delSpecific, toDel, optionR, optionN, optionW);
 
             u=strtok(0," ");
          } while (u!=0);
